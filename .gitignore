@@ -1,51 +1,36 @@
 ```
+# TypeScript build artifacts
+*.tsbuildinfo
+
 # Dependencies
 node_modules/
 
-# Python
+# Environment
+.env
+.env.local
+*.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Editors
+.vscode/
+.idea/
+
+# Coverage and test reports
+coverage/
+htmlcov/
+*.coverage
+
+# Python cache (if any Python files exist)
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
-ENV/
-.venv/
-.env
-.env.local
-.env.*
-.python-version
-pip-log.txt
-pip-delete-this-directory.txt
 
 # Build outputs
 dist/
 build/
-*.egg-info/
-.coverage
-htmlcov/
-coverage/
-
-# Logs
-*.log
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Environment specific
-.env.local
-.env.*local
-
-# TypeScript/JavaScript build
-.next/
-.nuxt/
+target/
 ```
