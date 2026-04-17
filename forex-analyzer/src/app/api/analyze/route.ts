@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzePairsAndSendSignals } from '@/lib/telegram';
 
-// Крипто-пары для демонстрации (работают с Binance API)
-const CRYPTO_PAIRS = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'BNBUSDT',
-  'XRPUSDT',
-  'ADAUSDT',
+// Forex валютные пары для анализа (majors)
+// Формат символов для Finnhub API: EURUSD, GBPUSD и т.д.
+const FOREX_PAIRS = [
+  'EURUSD',
+  'GBPUSD',
+  'USDJPY',
+  'AUDUSD',
+  'USDCAD',
+  'USDCHF',
+  'NZDUSD',
+  'EURGBP',
+  'EURJPY',
+  'GBPJPY',
 ];
 
 /**
@@ -32,7 +38,7 @@ export async function GET(request: NextRequest) {
     console.log('🚀 Запуск анализа через API...');
     
     const signals = await analyzePairsAndSendSignals(
-      CRYPTO_PAIRS,
+      FOREX_PAIRS,
       botToken,
       chatId
     );
