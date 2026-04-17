@@ -1,7 +1,10 @@
 ```
-# TypeScript/Next.js build artifacts
+# TypeScript/JavaScript build artifacts
 *.tsbuildinfo
+dist/
+build/
 .next/
+.nuxt/
 out/
 
 # Dependencies
