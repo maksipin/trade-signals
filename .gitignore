@@ -1,36 +1,12 @@
 ```
-# TypeScript build artifacts
-*.tsbuildinfo
-
 # Dependencies
 node_modules/
 
-# Environment
+# Logs
+*.log
+
+# Environment variables
 .env
 .env.local
 *.env.*
-
-# Logs and temp files
-*.log
-*.tmp
-
-# Editors
-.vscode/
-.idea/
-
-# Coverage and test reports
-coverage/
-htmlcov/
-*.coverage
-
-# Python cache (if any Python files exist)
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Build outputs
-dist/
-build/
-target/
 ```

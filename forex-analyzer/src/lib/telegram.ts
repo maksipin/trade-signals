@@ -1,15 +1,15 @@
 import { Candle, Signal } from '@/types';
-import finnhub from 'finnhub';
+import TwelveData from 'twelvedata';
 
-// Инициализация клиента Finnhub
-const getFinnhubClient = () => {
-  const apiKey = process.env.FINNHUB_API_KEY;
+// Инициализация клиента Twelve Data
+const getTwelveDataClient = () => {
+  const apiKey = process.env.TWELVEDATA_API_KEY;
   
   if (!apiKey) {
-    throw new Error('FINNHUB_API_KEY не установлен. Получите бесплатный ключ на https://finnhub.io/');
+    throw new Error('TWELVEDATA_API_KEY не установлен. Получите бесплатный ключ на https://twelvedata.com/');
   }
   
-  return new finnhub.DefaultApi(apiKey);
+  return TwelveData({ key: apiKey });
 };
 
 /**
@@ -50,10 +50,10 @@ export async function sendTelegramMessage(
 }
 
 /**
- * Получает данные свечей с Finnhub API (бесплатный источник данных для Forex)
- * Finnhub предоставляет исторические данные по валютным парам Форекс
- * Бесплатный тариф: 60 запросов/минуту, данные в реальном времени
- * Регистрация: https://finnhub.io/
+ * Получает данные свечей с Twelve Data API (бесплатный источник данных для Forex)
+ * Twelve Data предоставляет исторические данные по валютным парам Форекс
+ * Бесплатный тариф: 800 запросов/день, данные в реальном времени
+ * Регистрация: https://twelvedata.com/
  */
 export async function fetchCandles(
   symbol: string,
@@ -61,72 +61,56 @@ export async function fetchCandles(
   limit: number = 100
 ): Promise<Candle[]> {
   try {
-    const finnhubClient = getFinnhubClient();
+    const twelveDataClient = getTwelveDataClient();
     
-    // Преобразуем интервал в формат Finnhub
-    // Finnhub поддерживает: D (день), W (неделя), M (месяц) для REST API
-    // Для внутридневных данных используем параметр resolution в минутах
-    let finnhubResolution: string;
+    // Преобразуем интервал в формат Twelve Data
+    // Twelve Data поддерживает: 1min, 5min, 15min, 30min, 45min, 1h, 2h, 4h, 1day, 1week, 1month
+    let twelveDataInterval: string;
     switch (interval) {
       case '1h':
-        finnhubResolution = '60'; // 60 минут = 1 час
+        twelveDataInterval = '1h';
         break;
       case '1d':
-        finnhubResolution = 'D';
+        twelveDataInterval = '1day';
         break;
       case '4h':
-        finnhubResolution = '240'; // 240 минут = 4 часа
+        twelveDataInterval = '4h';
         break;
       default:
-        finnhubResolution = '60';
+        twelveDataInterval = '1h';
     }
     
-    // Формат символа для Finnhub Forex: OANDA:EUR_USD
-    const forexSymbol = `OANDA:${symbol.replace('/', '_')}`;
+    // Формат символа для Twelve Data Forex: EUR/USD
+    const forexSymbol = symbol;
     
-    // Вычисляем временной диапазон для получения нужного количества свечей
-    const endTime = Math.floor(Date.now() / 1000);
-    let startTime: number;
-    
-    // В зависимости от интервала вычисляем start time
-    if (interval === '1d') {
-      // Для дневных свечей берем последние limit дней
-      startTime = endTime - (limit * 24 * 60 * 60);
-    } else {
-      // Для часовых свечей берем последние limit часов
-      startTime = endTime - (limit * 60 * 60);
-    }
-    
-    // Используем промисификацию для forexCandles
-    const candlesData = await new Promise<any>((resolve, reject) => {
-      finnhubClient.forexCandles(forexSymbol, finnhubResolution, startTime, endTime, (error: any, data: any) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(data);
-        }
-      });
+    // Получаем данные через time_series endpoint
+    const response = await twelveDataClient.timeSeries({
+      symbol: forexSymbol,
+      interval: twelveDataInterval,
+      outputsize: limit,
+      format: 'JSON',
     });
     
-    // Finnhub возвращает объект: { s: 'ok', c: [close], o: [open], h: [high], l: [low], t: [timestamp], v: [volume] }
-    if (!candlesData || candlesData.s !== 'ok' || !candlesData.c || candlesData.c.length === 0) {
-      console.warn(`Нет данных для ${symbol} от Finnhub API`);
+    // Twelve Data возвращает объект с метаданными и массивом значений
+    if (!response || !response.values || response.values.length === 0) {
+      console.warn(`Нет данных для ${symbol} от Twelve Data API`);
       return [];
     }
     
     // Преобразуем данные в формат Candle
     const candles: Candle[] = [];
-    for (let i = 0; i < candlesData.c.length; i++) {
+    for (const item of response.values) {
       candles.push({
-        time: candlesData.t[i] * 1000, // Finnhub возвращает timestamp в секундах
-        open: candlesData.o[i],
-        high: candlesData.h[i],
-        low: candlesData.l[i],
-        close: candlesData.c[i],
+        time: new Date(item.datetime).getTime(),
+        open: parseFloat(item.open),
+        high: parseFloat(item.high),
+        low: parseFloat(item.low),
+        close: parseFloat(item.close),
       });
     }
     
-    return candles;
+    // Twelve Data возвращает данные в обратном порядке (новые сначала), разворачиваем
+    return candles.reverse();
   } catch (error) {
     console.error(`Ошибка получения данных для ${symbol}:`, error);
     return [];
