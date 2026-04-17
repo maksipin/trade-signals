@@ -38,9 +38,10 @@ export async function sendTelegramMessage(
 }
 
 /**
- * Получает данные свечей с Binance API (бесплатный источник данных)
- * Binance предоставляет исторические данные по криптовалютным парам,
- * но также можно использовать для forex-пар через другие API
+ * Получает данные свечей с Finnhub API (бесплатный источник данных для Forex)
+ * Finnhub предоставляет исторические данные по валютным парам Форекс
+ * Бесплатный тариф: 60 запросов/минуту, данные в реальном времени
+ * Регистрация: https://finnhub.io/
  */
 export async function fetchCandles(
   symbol: string,
@@ -48,27 +49,83 @@ export async function fetchCandles(
   limit: number = 100
 ): Promise<Candle[]> {
   try {
-    // Используем Binance API как пример (для крипто-пар)
-    // Для реального Forex нужно использовать специализированный API
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+    // Используем Finnhub API для Forex пар
+    // Бесплатный API ключ можно получить на https://finnhub.io/
+    const apiKey = process.env.FINNHUB_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('FINNHUB_API_KEY не установлен. Получите бесплатный ключ на https://finnhub.io/');
+    }
+    
+    // Преобразуем интервал в формат Finnhub
+    // Finnhub поддерживает: D (день), W (неделя), M (месяц) для REST API
+    // Для внутридневных данных используем параметр resolution в минутах
+    let finnhubResolution: string;
+    switch (interval) {
+      case '1h':
+        finnhubResolution = '60'; // 60 минут = 1 час
+        break;
+      case '1d':
+        finnhubResolution = 'D';
+        break;
+      case '4h':
+        finnhubResolution = '240'; // 240 минут = 4 часа
+        break;
+      default:
+        finnhubResolution = '60';
+    }
+    
+    // Формат символа для Finnhub Forex: FX:EURUSD
+    const forexSymbol = `FX:${symbol}`;
+    
+    // Вычисляем временной диапазон для получения нужного количества свечей
+    const endTime = Math.floor(Date.now() / 1000);
+    let startTime: number;
+    
+    // В зависимости от интервала вычисляем start time
+    if (interval === '1d') {
+      // Для дневных свечей берем последние limit дней
+      startTime = endTime - (limit * 24 * 60 * 60);
+    } else {
+      // Для часовых свечей берем последние limit часов
+      startTime = endTime - (limit * 60 * 60);
+    }
+    
+    const url = `https://finnhub.io/api/v1/stock/candle?symbol=${forexSymbol}&resolution=${finnhubResolution}&from=${startTime}&to=${endTime}&token=${apiKey}`;
     
     const response = await fetch(url);
     
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Неверный API ключ Finnhub. Получите бесплатный ключ на https://finnhub.io/');
+      }
+      if (response.status === 429) {
+        throw new Error('Превышен лимит запросов Finnhub API (60/минуту на бесплатном тарифе)');
+      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
     
+    // Finnhub возвращает объект: { s: 'ok', c: [close], o: [open], h: [high], l: [low], t: [timestamp], v: [volume] }
+    if (data.s !== 'ok' || !data.c || data.c.length === 0) {
+      console.warn(`Нет данных для ${symbol} от Finnhub API`);
+      return [];
+    }
+    
     // Преобразуем данные в формат Candle
-    // Binance возвращает: [time, open, high, low, close, volume, ...]
-    return data.map((item: any[]) => ({
-      time: item[0],
-      open: parseFloat(item[1]),
-      high: parseFloat(item[2]),
-      low: parseFloat(item[3]),
-      close: parseFloat(item[4]),
-    }));
+    const candles: Candle[] = [];
+    for (let i = 0; i < data.c.length; i++) {
+      candles.push({
+        time: data.t[i] * 1000, // Finnhub возвращает timestamp в секундах
+        open: data.o[i],
+        high: data.h[i],
+        low: data.l[i],
+        close: data.c[i],
+      });
+    }
+    
+    return candles;
   } catch (error) {
     console.error(`Ошибка получения данных для ${symbol}:`, error);
     return [];

@@ -12,8 +12,8 @@
 
 import { analyzePairsAndSendSignals } from '@/lib/telegram';
 
-// Список валютных пар для анализа (используем крипто-пары как пример)
-// Для реального Forex замените на соответствующие символы вашего API провайдера
+// Список валютных пар для анализа (Forex majors)
+// Формат символов для Finnhub API: EURUSD, GBPUSD и т.д. (с префиксом FX:)
 const FOREX_PAIRS = [
   'EURUSD',
   'GBPUSD',
@@ -25,15 +25,6 @@ const FOREX_PAIRS = [
   'EURGBP',
   'EURJPY',
   'GBPJPY',
-];
-
-// Крипто-пары для демонстрации (работают с Binance API)
-const CRYPTO_PAIRS = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'BNBUSDT',
-  'XRPUSDT',
-  'ADAUSDT',
 ];
 
 async function main() {
@@ -50,11 +41,11 @@ async function main() {
 
   console.log('🚀 Запуск анализа валютных пар...');
   console.log(`Время: ${new Date().toLocaleString('ru-RU')}`);
-  console.log(`Анализируемые пары: ${CRYPTO_PAIRS.join(', ')}`);
+  console.log(`Анализируемые пары: ${FOREX_PAIRS.join(', ')}`);
 
   try {
     const signals = await analyzePairsAndSendSignals(
-      CRYPTO_PAIRS,
+      FOREX_PAIRS,
       botToken,
       chatId
     );
