@@ -2,6 +2,12 @@
 
 import { useState } from 'react';
 
+interface Signal {
+  pair: string;
+  action: 'BUY' | 'SELL';
+  timestamp: string;
+}
+
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
@@ -9,8 +15,9 @@ export default function Home() {
     message: string;
     signalsCount: number;
     timestamp?: string;
+    signals?: Signal[];
   } | null>(null);
-
+  
   const handleAnalyze = async () => {
     setLoading(true);
     setResult(null);
@@ -23,18 +30,19 @@ export default function Home() {
         message: data.message,
         signalsCount: data.signalsCount,
         timestamp: data.timestamp,
+        signals: data.signals || [],
       });
     } catch (error) {
       setResult({
         success: false,
         message: 'Ошибка при выполнении анализа',
         signalsCount: 0,
+        signals: [],
       });
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-900 to-gray-800">
       <div className="max-w-2xl w-full text-center space-y-8">
@@ -88,6 +96,44 @@ export default function Home() {
                   Время: {new Date(result.timestamp).toLocaleString('ru-RU')}
                 </p>
               )}
+            </div>
+          )}
+
+          {result && result.signals && result.signals.length > 0 && (
+            <div className="mt-6 bg-gray-800 rounded-lg p-6 shadow-xl border border-gray-700">
+              <h2 className="text-xl font-semibold text-white mb-4">
+                📈 Найденные сигналы
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {result.signals.map((signal, index) => (
+                  <div
+                    key={index}
+                    className={`p-4 rounded-lg border ${
+                      signal.action === 'BUY'
+                        ? 'bg-green-900/30 border-green-700'
+                        : 'bg-red-900/30 border-red-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-lg font-bold text-white">
+                        {signal.pair}
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          signal.action === 'BUY'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-red-600 text-white'
+                        }`}
+                      >
+                        {signal.action}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 text-sm">
+                      {new Date(signal.timestamp).toLocaleString('ru-RU')}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
