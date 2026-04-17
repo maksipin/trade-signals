@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { analyzePairsAndSendSignals } from '@/lib/telegram';
 
 // Forex валютные пары для анализа (majors)
-// Формат символов для Finnhub API: EURUSD, GBPUSD и т.д.
+// Формат символов для Twelve Data API: EUR/USD, GBP/USD и т.д.
 const FOREX_PAIRS = [
-  'EURUSD',
-  'GBPUSD',
-  'USDJPY',
-  'AUDUSD',
-  'USDCAD',
-  'USDCHF',
-  'NZDUSD',
-  'EURGBP',
-  'EURJPY',
-  'GBPJPY',
+  'EUR/USD',
+  'GBP/USD',
+  'USD/JPY',
+  'AUD/USD',
+  'USD/CAD',
+  'USD/CHF',
+  'NZD/USD',
+  'EUR/GBP',
+  'EUR/JPY',
+  'GBP/JPY',
 ];
 
 /**
