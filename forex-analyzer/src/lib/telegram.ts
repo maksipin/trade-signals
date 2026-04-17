@@ -1,4 +1,16 @@
 import { Candle, Signal } from '@/types';
+import finnhub from 'finnhub';
+
+// Инициализация клиента Finnhub
+const getFinnhubClient = () => {
+  const apiKey = process.env.FINNHUB_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('FINNHUB_API_KEY не установлен. Получите бесплатный ключ на https://finnhub.io/');
+  }
+  
+  return new finnhub.DefaultApi(apiKey);
+};
 
 /**
  * Отправляет сообщение в Telegram бот
@@ -49,13 +61,7 @@ export async function fetchCandles(
   limit: number = 100
 ): Promise<Candle[]> {
   try {
-    // Используем Finnhub API для Forex пар
-    // Бесплатный API ключ можно получить на https://finnhub.io/
-    const apiKey = process.env.FINNHUB_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error('FINNHUB_API_KEY не установлен. Получите бесплатный ключ на https://finnhub.io/');
-    }
+    const finnhubClient = getFinnhubClient();
     
     // Преобразуем интервал в формат Finnhub
     // Finnhub поддерживает: D (день), W (неделя), M (месяц) для REST API
@@ -75,8 +81,8 @@ export async function fetchCandles(
         finnhubResolution = '60';
     }
     
-    // Формат символа для Finnhub Forex: FX:EURUSD
-    const forexSymbol = `FX:${symbol}`;
+    // Формат символа для Finnhub Forex: OANDA:EUR_USD
+    const forexSymbol = `OANDA:${symbol.replace('/', '_')}`;
     
     // Вычисляем временной диапазон для получения нужного количества свечей
     const endTime = Math.floor(Date.now() / 1000);
@@ -91,37 +97,32 @@ export async function fetchCandles(
       startTime = endTime - (limit * 60 * 60);
     }
     
-    const url = `https://finnhub.io/api/v1/stock/candle?symbol=${forexSymbol}&resolution=${finnhubResolution}&from=${startTime}&to=${endTime}&token=${apiKey}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Неверный API ключ Finnhub. Получите бесплатный ключ на https://finnhub.io/');
-      }
-      if (response.status === 429) {
-        throw new Error('Превышен лимит запросов Finnhub API (60/минуту на бесплатном тарифе)');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
+    // Используем промисификацию для forexCandles
+    const candlesData = await new Promise<any>((resolve, reject) => {
+      finnhubClient.forexCandles(forexSymbol, finnhubResolution, startTime, endTime, (error: any, data: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(data);
+        }
+      });
+    });
     
     // Finnhub возвращает объект: { s: 'ok', c: [close], o: [open], h: [high], l: [low], t: [timestamp], v: [volume] }
-    if (data.s !== 'ok' || !data.c || data.c.length === 0) {
+    if (!candlesData || candlesData.s !== 'ok' || !candlesData.c || candlesData.c.length === 0) {
       console.warn(`Нет данных для ${symbol} от Finnhub API`);
       return [];
     }
     
     // Преобразуем данные в формат Candle
     const candles: Candle[] = [];
-    for (let i = 0; i < data.c.length; i++) {
+    for (let i = 0; i < candlesData.c.length; i++) {
       candles.push({
-        time: data.t[i] * 1000, // Finnhub возвращает timestamp в секундах
-        open: data.o[i],
-        high: data.h[i],
-        low: data.l[i],
-        close: data.c[i],
+        time: candlesData.t[i] * 1000, // Finnhub возвращает timestamp в секундах
+        open: candlesData.o[i],
+        high: candlesData.h[i],
+        low: candlesData.l[i],
+        close: candlesData.c[i],
       });
     }
     
